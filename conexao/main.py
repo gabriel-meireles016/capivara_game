@@ -1,5 +1,5 @@
-from conexao.database import session, tables
-from conexao.query import mostrar_usuarios
+from database import session, tables
+from query import mostrar_usuarios
 
 def menu_principal():
     print("==== CAPIVARA GAME APRESENTA: DOMINÓ ====")
@@ -45,14 +45,29 @@ def historico_partidas():
 
 def main():
     while True:
-        opcao = menu_principal()
+        opcao = int(menu_principal())
 
         if opcao == 1:
-            iniciar_partida()
+            print("Esses são os usuários cadastrados:")
+            mostrar_usuarios()
+            break
         elif opcao == 2:
             historico_partidas()
         elif opcao == 3:
             print("Obrigado por jogar. Volte sempre!")
             break
+        elif opcao == 5:
+            print("Obrigado por jogar. Volte sempre!")
+            break
         else:
-            print("Opção inválida.")
+            print("Opção inválida. Tente novamente.")
+
+
+
+# def testar():
+#     mostrar_usuarios()
+
+
+# testar()
+
+main()
