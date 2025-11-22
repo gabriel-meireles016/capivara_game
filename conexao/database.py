@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 
 #Essa url aqui recomendo fazer com o chatgpt pq cada um instalou de um jeito
-DATABASE_URL = "postgresql+psycopg2://postgres:12345@localhost:5432/domino_db"
+DATABASE_URL = "postgresql+psycopg2://postgres:12345@localhost:5432/domino_chat"
 
 #Dá a url pro sqlalchemy procurar
 engine = create_engine(DATABASE_URL)
