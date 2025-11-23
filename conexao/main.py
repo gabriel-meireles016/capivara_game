@@ -24,6 +24,7 @@ Movimentacao = tables.movimentacao
 PartidaUsuario = tables.partidausuario
 
 # ========================= UTILITÁRIOS =========================
+# Lista todos os jogadores cadastrados
 def listar_usuarios():
     usuarios = session.query(Usuario).all()
     print("\n=== Usuários ===")
@@ -31,6 +32,7 @@ def listar_usuarios():
         print(f"ID: {u.idusuario} | Nome: {u.nome}")
     print()
 
+# Lista todas as partidas e seus respectivos horários de início e fim
 def listar_partidas():
     partidas = session.query(Partida).all()
     print("\n=== Partidas ===")
@@ -39,6 +41,7 @@ def listar_partidas():
         print(f"Partida {p.idpartida} | Início: {p.datahorainicio} | Fim: {p.datahorafim} | Vencedor: {vencedor}")
     print()
 
+# Função para criar um novo usuário
 def criar_jogador():
     nome = input("Nome: ")
     novo = Usuario(nome=nome)
@@ -47,6 +50,7 @@ def criar_jogador():
     print("Usuário criado!\n")
 
 # ========================= PARTIDA =========================
+# Cria uma partida e adiciona os jogadores a ela
 def iniciar_partida():
     print("\n=== Nova partida ===")
     partida = Partida()
@@ -91,10 +95,11 @@ def iniciar_partida():
     return partida.idpartida
 
 # ========================= PEÇAS =========================
+# Distribui as peças
 def distribuir_pecas(idpartida):
     print("Distribuindo peças...")
 
-    # Limpar peças antigas
+    # Limpa peças antigas
     session.query(MaoPartida).filter_by(idpartida=idpartida).delete()
     session.commit()
 
@@ -103,7 +108,7 @@ def distribuir_pecas(idpartida):
     random.shuffle(idspecas)
 
     jogadores = session.query(PartidaUsuario).filter_by(idpartida=idpartida).all()
-    mao = 7 if len(jogadores) <= 2 else 5
+    mao = 7
     idx = 0
 
     for j in jogadores:
@@ -130,50 +135,8 @@ def distribuir_pecas(idpartida):
     session.commit()
     print("Peças distribuídas!\n")
 
-# ========================= MOVIMENTOS =========================
-def comprar_peca(idpartida):
-    user = int(input("Jogador: "))
-    try:
-        # CORREÇÃO: Usar text() para chamar procedures
-        session.execute(text(f"CALL ComprarPecaDoMonte({idpartida}, {user})"))
-        session.commit()
-        print("Peça comprada com sucesso!")
-    except Exception as e:
-        print(f"Erro ao comprar peça: {e}")
-        session.rollback()
-
-def jogar_peca(idpartida):
-    user = int(input("Jogador: "))
-    peca = int(input("ID da peça: "))
-    lado = input("Extremidade (esquerda/direita): ")
-    valor = int(input("Valor da extremidade: "))
-    try:
-        # CORREÇÃO: Usar text() e nomes corretos dos parâmetros
-        session.execute(text(f"CALL ValidarJogada({idpartida}, {user}, {peca}, '{lado}', {valor})"))
-        session.commit()
-        print("Jogada realizada!")
-    except Exception as e:
-        print(f"Erro na jogada: {e}")
-        session.rollback()
-
-def mostrar_mao_jogador():
-    idpartida = int(input("ID da partida: "))
-    idusuario = int(input("ID do jogador: "))
-    
-    pecas_mao = session.query(MaoPartida, Peca).join(
-        Peca, MaoPartida.idpeca == Peca.idpeca
-    ).filter(
-        MaoPartida.idpartida == idpartida,
-        MaoPartida.idusuario == idusuario,
-        MaoPartida.statuspeca == 'em_mao'
-    ).all()
-    
-    print(f"\n=== Mão do Jogador {idusuario} (Partida {idpartida}) ===")
-    for mao, peca in pecas_mao:
-        print(f"Peça ID: {peca.idpeca} | Lados: [{peca.ladoa}-{peca.ladob}] | Pontos: {peca.pontospeca}")
-    print(f"Total de peças: {len(pecas_mao)}\n")
-
 # ========================= RANKING / HISTÓRICO =========================
+# Mostra o ranking de vencedores
 def ranking():
     try:
         rows = session.execute(text("SELECT * FROM RankingUsuarios")).fetchall()
@@ -184,6 +147,7 @@ def ranking():
     except Exception as e:
         print(f"Erro ao carregar ranking: {e}")
 
+# Mostra todas as partidas e vencedores
 def historico():
     try:
         rows = session.execute(text("SELECT * FROM PartidasDetalhadas")).fetchall()
@@ -196,13 +160,13 @@ def historico():
 
 # ========================= LÓGICA DO JOGO INTERATIVO =========================
 
+# Obtém os valores atuais da extremidade da mesa
 def obter_extremidades_partida(idpartida):
-    """Obtém os valores atuais das extremidades da partida"""
     partida = session.query(Partida).filter_by(idpartida=idpartida).first()
     return partida.valorextesquerda, partida.valorextdireita
 
+# Mostra o estado da mesa
 def mostrar_mesa(idpartida):
-    """Mostra o estado atual da mesa"""
     partida = session.query(Partida).filter_by(idpartida=idpartida).first()
     ext_esq, ext_dir = partida.valorextesquerda, partida.valorextdireita
     
@@ -224,8 +188,8 @@ def mostrar_mesa(idpartida):
             print(f"[{peca.ladoa}-{peca.ladob}]", end=" ")
         print()
 
-def mostrar_estado_jogador(idpartida, idusuario):
-    """Mostra a mão do jogador e jogadas possíveis"""
+# Mostra a mão do jogador
+def mostrar_mao_jogador(idpartida, idusuario):
     usuario = session.query(Usuario).filter_by(idusuario=idusuario).first()
     print(f"\n--- Vez de: {usuario.nome} (ID: {idusuario}) ---")
     
@@ -257,8 +221,8 @@ def mostrar_estado_jogador(idpartida, idusuario):
     else:
         print("\nNenhuma jogada possível nas extremidades atuais")
 
+# Analisa as possíveis jogadas que o jogador pode fazer
 def obter_jogadas_validas(idpartida, idusuario):
-    """Retorna lista de peças que podem ser jogadas pelo usuário"""
     ext_esq, ext_dir = obter_extremidades_partida(idpartida)
     jogadas_validas = []
     
@@ -277,8 +241,8 @@ def obter_jogadas_validas(idpartida, idusuario):
     
     return jogadas_validas
 
+# Define o próximo jogador
 def obter_proximo_jogador(idpartida, jogador_atual):
-    """Obtém o próximo jogador na sequência anti-horária"""
     participantes = session.query(PartidaUsuario).filter_by(
         idpartida=idpartida
     ).order_by(PartidaUsuario.posicaomesa).all()
@@ -295,8 +259,8 @@ def obter_proximo_jogador(idpartida, jogador_atual):
     proxima_pos = (pos_atual + 1) % len(participantes)
     return participantes[proxima_pos].idusuario
 
+# Jogada do usuário
 def realizar_jogada_usuario(idpartida, idusuario):
-    """Permite que o usuário realize uma jogada"""
     jogadas_validas = obter_jogadas_validas(idpartida, idusuario)
     
     if jogadas_validas:
@@ -436,8 +400,8 @@ def realizar_jogada_usuario(idpartida, idusuario):
             print("Opção inválida!")
             return False
 
+# Verifica se alguém bateu
 def verificar_jogador_bateu(idpartida, idusuario):
-    """Verifica se jogador bateu (ficou sem peças)"""
     pecas_mao = session.query(MaoPartida).filter_by(
         idpartida=idpartida,
         idusuario=idusuario,
@@ -446,8 +410,8 @@ def verificar_jogador_bateu(idpartida, idusuario):
     
     return pecas_mao == 0
 
+# Verifica se alguém trancou a mesa
 def verificar_jogo_trancado(idpartida):
-    """Verifica se o jogo está trancado"""
     ext_esq, ext_dir = obter_extremidades_partida(idpartida)
     
     participantes = session.query(PartidaUsuario).filter_by(idpartida=idpartida).all()
@@ -466,8 +430,8 @@ def verificar_jogo_trancado(idpartida):
     
     return pecas_monte == 0  # Jogo trancado apenas se monte também estiver vazio
 
+# Calcula a pontuação do trancamento
 def calcular_pontuacao_trancamento(idpartida):
-    """Calcula pontuação quando jogo está trancado"""
     participantes = session.query(PartidaUsuario).filter_by(idpartida=idpartida).all()
     
     # Para jogo individual (2-3 jogadores)
@@ -508,8 +472,8 @@ def calcular_pontuacao_trancamento(idpartida):
         id_dupla_vencedora = min(duplas, key=duplas.get)
         return None, id_dupla_vencedora, duplas[id_dupla_vencedora]
 
+# Finaliza a partida
 def finalizar_partida(idpartida, motivo, idvencedor=None, idduplavencedora=None):
-    """Finaliza a partida e calcula pontuação"""
     partida = session.query(Partida).filter_by(idpartida=idpartida).first()
     
     partida.datahorafim = text("CURRENT_TIMESTAMP")
@@ -531,8 +495,8 @@ def finalizar_partida(idpartida, motivo, idvencedor=None, idduplavencedora=None)
         print(f"Dupla vencedora: {dupla.nomedupla}")
     print(f"Pontos da partida: {partida.pontosdapartida}")
 
+# Função principal do jogo
 def jogar_partida_interativa(idpartida):
-    """Loop principal do jogo interativo"""
     print(f"\n=== INICIANDO PARTIDA {idpartida} ===")
     
     # Distribuir peças
@@ -582,7 +546,7 @@ def jogar_partida_interativa(idpartida):
         
         # Mostrar estado atual
         mostrar_mesa(idpartida)
-        mostrar_estado_jogador(idpartida, jogador_atual)
+        mostrar_mao_jogador(idpartida, jogador_atual)
         
         # Verificar se jogador atual bateu
         if verificar_jogador_bateu(idpartida, jogador_atual):
@@ -618,18 +582,14 @@ def jogar_partida_interativa(idpartida):
 def menu():
     while True:
         print("""
-================ DOMINÓ CLI ================
+================ CAPIVARA GAME ================
 1. Listar usuários
 2. Criar jogador
 3. Iniciar partida
-4. Distribuir peças
-5. Comprar peça
-6. Jogar peça
-7. Listar partidas
-8. Ranking
-9. Histórico
-10. Mostrar mão
-11. Jogar partida interativa  # NOVA OPÇÃO
+4. Jogar partida
+5. Listar partidas
+6. Ranking
+7. Histórico
 0. Sair
         """)
         c = input("Opção: ")
@@ -639,20 +599,10 @@ def menu():
         elif c == "3": iniciar_partida()
         elif c == "4": 
             pid = int(input("ID da partida: "))
-            distribuir_pecas(pid)
-        elif c == "5": 
-            pid = int(input("ID da partida: "))
-            comprar_peca(pid)
-        elif c == "6": 
-            pid = int(input("ID da partida: "))
-            jogar_peca(pid)
-        elif c == "7": listar_partidas()
-        elif c == "8": ranking()
-        elif c == "9": historico()
-        elif c == "10": mostrar_mao_jogador()
-        elif c == "11":  # NOVA OPÇÃO INTERATIVA
-            pid = int(input("ID da partida: "))
             jogar_partida_interativa(pid)
+        elif c == "5": listar_partidas()
+        elif c == "6": ranking()
+        elif c == "7": historico()
         elif c == "0": 
             session.close()
             sys.exit()
