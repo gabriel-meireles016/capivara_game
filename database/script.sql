@@ -1,37 +1,31 @@
--- =========================================================
--- TABELAS
--- =========================================================
-
 CREATE TABLE Usuario (
     idUsuario    SERIAL PRIMARY KEY,
     nome          VARCHAR(255) NOT NULL,
     dataCadastro  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Peças do dominó (28 peças)
 CREATE TABLE Peca (
     idPeca    SERIAL PRIMARY KEY,
     ladoA      INT NOT NULL CHECK (ladoA BETWEEN 0 AND 6),
     ladoB      INT NOT NULL CHECK (ladoB BETWEEN 0 AND 6),
-    pontosPeca INT NOT NULL -- soma de ladoA + ladoB
+    pontosPeca INT NOT NULL 
 );
 
--- Partida (uma partida dentro de uma sessao)
 CREATE TABLE Partida (
     idPartida SERIAL PRIMARY KEY,
-    idJogadorIniciou INT,                     -- usuario que iniciou (idUsuario) -- NULL possível
-    idJogadorVencedor INT,                    -- quando jogo 2/3 players
-    idDuplaVencedora INT, -- quando jogo 4 players
-    idDuplaTrancou INT,   -- dupla que causou o trancamento (se aplicável)
-    pontosDaPartida INT NOT NULL DEFAULT 0,    -- pontos ganhos nesta partida (para o vencedor: soma pontos dos adversários)
-    modoTermino VARCHAR(20),                   -- 'bater' | 'trancado' | NULL
-    valorExtEsquerda INT,                      -- registro das extremidades (ajuda nas funções)
+    idJogadorIniciou INT,                    
+    idJogadorVencedor INT,                  
+    idDuplaVencedora INT, 
+    idDuplaTrancou INT,   
+    pontosDaPartida INT NOT NULL DEFAULT 0,    
+    modoTermino VARCHAR(20),                  
+    valorExtEsquerda INT,                      
     valorExtDireita INT,
     dataHoraInicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     dataHoraFim TIMESTAMP
 );
 
--- Dupla: apenas usada quando sessão tem 4 jogadores
+
 CREATE TABLE Dupla (
     idDupla INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     idPartida INT NOT NULL REFERENCES Partida(idPartida) ON DELETE CASCADE,
@@ -42,7 +36,6 @@ CREATE TABLE Dupla (
 ALTER TABLE Partida ADD FOREIGN KEY (idDuplaVencedora) REFERENCES Dupla(idDupla);
 ALTER TABLE Partida ADD FOREIGN KEY (idDuplaTrancou) REFERENCES Dupla(idDupla);
 
--- Associação usuário-sessão (quem participa de qual sessão; se em dupla, idDupla aponta)
 CREATE TABLE PartidaUsuario (
     idPartida INT NOT NULL REFERENCES Partida(idPartida) ON DELETE CASCADE,
     idUsuario    INT NOT NULL REFERENCES Usuario(idUsuario) ON DELETE CASCADE,
@@ -51,32 +44,27 @@ CREATE TABLE PartidaUsuario (
     PRIMARY KEY (idPartida, idUsuario)
 );
 
--- MaoPartida: estado das peças em uma partida (quem tem, se está no monte, etc.)
 CREATE TABLE MaoPartida (
     idMaoPartida SERIAL PRIMARY KEY,
     idPartida INT NOT NULL REFERENCES Partida(idPartida) ON DELETE CASCADE,
     idPeca INT NOT NULL REFERENCES Peca(idPeca),
-    idUsuario INT, -- NULL se a peça estiver no monte ou jogada
+    idUsuario INT, 
     statusPeca VARCHAR(20) NOT NULL CHECK (statusPeca IN ('no_monte','em_mao','jogada')),
     CONSTRAINT uniquePecaPorPartida UNIQUE (idPartida, idPeca)
 );
 
--- Movimentacao: histórico de ações dentro da partida
 CREATE TABLE Movimentacao (
     idMovimentacao SERIAL PRIMARY KEY,
     idPartida INT NOT NULL REFERENCES Partida(idPartida) ON DELETE CASCADE,
     idUsuario INT NOT NULL REFERENCES Usuario(idUsuario),
     dataHoraAcao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    ordemAcao INT NOT NULL, -- ordem da jogada
-    tipoAcao VARCHAR(20) NOT NULL, -- 'jogada' | 'comprou' | 'passou'
+    ordemAcao INT NOT NULL, 
+    tipoAcao VARCHAR(20) NOT NULL, 
     idPecaJogada INT REFERENCES Peca(idPeca),
-    extremidadeMesa VARCHAR(10) -- 'esquerda'/'direita' ou NULL
+    extremidadeMesa VARCHAR(10) 
 );
 
--- =========================================================
--- POPULAÇÃO INICIAL: peças do dominó
--- =========================================================
--- TRUNCATE TABLE Peca;
+
 INSERT INTO Peca (ladoA, ladoB, pontosPeca) VALUES
 (0,0,0),(0,1,1),(0,2,2),(0,3,3),(0,4,4),(0,5,5),(0,6,6),
 (1,1,2),(1,2,3),(1,3,4),(1,4,5),(1,5,6),(1,6,7),
@@ -86,11 +74,7 @@ INSERT INTO Peca (ladoA, ladoB, pontosPeca) VALUES
 (5,5,10),(5,6,11),
 (6,6,12);
 
--- =========================================================
--- FUNÇÕES E PROCEDURES (BASE)
--- =========================================================
 
--- Verifica se um jogador tem alguma peça que encaixa nas extremidades
 CREATE OR REPLACE FUNCTION VerificarJogadasPossiveis(
     pIdPartida INT,
     pIdUsuario INT,
@@ -117,8 +101,6 @@ BEGIN
 END;
 $$;
 
-
--- Detecta se o jogo está trancado (nenhum jogador com peça válida)
 CREATE OR REPLACE FUNCTION DetectarJogoTrancado(
     pIdPartida INT,
     pValorEsquerda INT,
@@ -142,7 +124,7 @@ END;
 $$;
 
 
--- Procedure: comprar peça do monte (para 2/3 players)
+
 CREATE OR REPLACE PROCEDURE ComprarPecaDoMonte(
     IN pIdPartida INT,
     IN pIdUsuario INT
@@ -175,7 +157,7 @@ BEGIN
 END;
 $$;
 
--- Procedure: validar jogada (apenas valida encaixe e grava movimentacao; NÃO atualiza pontuação da partida)
+
 CREATE OR REPLACE PROCEDURE ValidarJogada(
     IN pIdPartida INT,
     IN pIdUsuario INT,
@@ -196,7 +178,6 @@ BEGIN
     END IF;
 
     IF vValida THEN
-        -- marca peça como jogada (retira da mão)
         UPDATE MaoPartida
         SET statusPeca = 'jogada',
             idUsuario = NULL
@@ -214,11 +195,6 @@ BEGIN
 END;
 $$;
 
--- =========================================================
--- FUNÇÃO E GATILHO PARA CÁLCULO AUTOMÁTICO DE PONTOS
--- =========================================================
-
--- Função para calcular pontos quando partida termina
 CREATE OR REPLACE FUNCTION calcularPontosPartida()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -226,13 +202,9 @@ DECLARE
     idVencedor INTEGER;
     idDuplaVencedora INTEGER;
 BEGIN
-    -- Só calcula se a partida está sendo finalizada (dataHoraFim preenchido)
     IF NEW.dataHoraFim IS NOT NULL AND OLD.dataHoraFim IS NULL THEN
-        -- Se partida terminou por "bater"
         IF NEW.modoTermino = 'bater' THEN
-            -- Se é jogo de duplas (4 jogadores)
             IF NEW.idDuplaVencedora IS NOT NULL THEN
-                -- Calcula soma dos pontos da dupla adversária
                 SELECT COALESCE(SUM(MP.pontosPeca), 0)
                 INTO totalPontosAdversarios
                 FROM MaoPartida MP
@@ -243,9 +215,7 @@ BEGIN
                   
                 NEW.pontosDaPartida := totalPontosAdversarios;
                 
-            -- Se é jogo individual (2 ou 3 jogadores)
             ELSIF NEW.idJogadorVencedor IS NOT NULL THEN
-                -- Calcula soma dos pontos dos adversários
                 SELECT COALESCE(SUM(MP.pontosPeca), 0)
                 INTO totalPontosAdversarios
                 FROM MaoPartida MP
@@ -256,11 +226,8 @@ BEGIN
                 NEW.pontosDaPartida := totalPontosAdversarios;
             END IF;
             
-        -- Se partida terminou "trancada"
         ELSIF NEW.modoTermino = 'trancado' THEN
-            -- Na regra do dominó, quem trancou ganha os pontos do adversário com MENOS pontos
             IF NEW.idDuplaTrancou IS NOT NULL THEN
-                -- Encontra a dupla com menos pontos
                 WITH PontosDuplas AS (
                     SELECT 
                         PU.idDupla,
@@ -278,9 +245,7 @@ BEGIN
                 
                 NEW.pontosDaPartida := COALESCE(totalPontosAdversarios, 0);
                 
-            -- Para jogo individual trancado
             ELSIF NEW.idJogadorVencedor IS NOT NULL THEN
-                -- Encontra o jogador com menos pontos
                 WITH PontosJogadores AS (
                     SELECT 
                         MP.idUsuario,
@@ -304,20 +269,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Gatilho para calcular pontos automaticamente
 CREATE TRIGGER trigCalcularPontosPartida
     BEFORE UPDATE ON Partida
     FOR EACH ROW
     EXECUTE FUNCTION calcularPontosPartida();
 
 
--- =========================================================
--- VISÃO: RANKING DE PONTUAÇÃO POR USUÁRIO
--- =========================================================
-
 CREATE OR REPLACE VIEW RankingUsuarios AS
 WITH PartidasVencidas AS (
-    -- Partidas vencidas como jogador individual
     SELECT 
         P.idJogadorVencedor as idUsuario,
         COUNT(*) as partidasVencidas,
@@ -328,7 +287,6 @@ WITH PartidasVencidas AS (
     
     UNION ALL
     
-    -- Partidas vencidas como parte de uma dupla
     SELECT 
         PU.idUsuario,
         COUNT(*) as partidasVencidas,
@@ -340,7 +298,6 @@ WITH PartidasVencidas AS (
     GROUP BY PU.idUsuario
 ),
 TotalPartidas AS (
-    -- Total de partidas jogadas por usuário
     SELECT 
         PU.idUsuario,
         COUNT(DISTINCT PU.idPartida) as totalPartidasJogadas
@@ -377,10 +334,6 @@ LEFT JOIN (
 ) PV ON U.idUsuario = PV.idUsuario
 ORDER BY partidasVencidas DESC, totalPontosGanhos DESC;
 
--- =========================================================
--- VISÃO: LISTAGEM DE PARTIDAS E VENCEDORES
--- =========================================================
-
 CREATE OR REPLACE VIEW PartidasDetalhadas AS
 SELECT 
     P.idPartida,
@@ -389,23 +342,18 @@ SELECT
     P.modoTermino,
     P.pontosDaPartida,
     
-    -- Informações do vencedor individual
     CASE 
         WHEN P.idJogadorVencedor IS NOT NULL THEN 'Jogador Individual'
         WHEN P.idDuplaVencedora IS NOT NULL THEN 'Dupla'
         ELSE 'Sem vencedor'
     END as tipoVitoria,
     
-    -- Detalhes do vencedor individual
     UV.nome as nomeVencedorIndividual,
     
-    -- Detalhes da dupla vencedora
     D.nomeDupla as nomeDuplaVencedora,
     
-    -- Detalhes do trancamento
     DT.nomeDupla as nomeDuplaTrancou,
     
-    -- Jogadores participantes
     (
         SELECT STRING_AGG(U.nome, ', ' ORDER BY PU.posicaoMesa)
         FROM PartidaUsuario PU
@@ -413,7 +361,6 @@ SELECT
         WHERE PU.idPartida = P.idPartida
     ) as jogadoresParticipantes,
     
-    -- Duplas participantes (se houver)
     (
         SELECT STRING_AGG(DISTINCT D2.nomeDupla, ', ')
         FROM PartidaUsuario PU2
@@ -421,14 +368,12 @@ SELECT
         WHERE PU2.idPartida = P.idPartida
     ) as duplasParticipantes,
     
-    -- Total de movimentações na partida
     (
         SELECT COUNT(*) 
         FROM Movimentacao M 
         WHERE M.idPartida = P.idPartida
     ) as totalMovimentacoes,
     
-    -- Duração da partida em minutos
     CASE 
         WHEN P.dataHoraFim IS NOT NULL THEN
             EXTRACT(EPOCH FROM (P.dataHoraFim - P.dataHoraInicio)) / 60

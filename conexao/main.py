@@ -2,28 +2,11 @@ import sys
 import random
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.automap import automap_base
-from sqlalchemy.orm import Session
+from conexao import session, Usuario, Dupla, Partida, Peca, MaoPartida, Movimentacao, PartidaUsuario
 
-DATABASE_URL = "postgresql+psycopg2://postgres:1234@localhost:5432/domino_chat"
 
-# Conexão e mapeamento automático
-engine = create_engine(DATABASE_URL)
-Base = automap_base()
-Base.prepare(autoload_with=engine)
 
-session = Session(engine)
-tables = Base.classes
-
-# Mapear tabelas - usar os nomes exatos do banco
-Usuario = tables.usuario
-Dupla = tables.dupla
-Partida = tables.partida
-Peca = tables.peca
-MaoPartida = tables.maopartida
-Movimentacao = tables.movimentacao
-PartidaUsuario = tables.partidausuario
-
-# ========================= UTILITÁRIOS =========================
+# Funções uteis
 # Lista todos os jogadores cadastrados
 def listar_usuarios():
     usuarios = session.query(Usuario).all()
