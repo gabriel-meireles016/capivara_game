@@ -4,7 +4,7 @@ DATABASE_URL = "postgresql+psycopg2://postgres:12345@localhost:5432/domino_db"
 
 engine = create_engine(DATABASE_URL)
 
-with open("script.sql", "r", encoding="utf8") as f:
+with open("database/script.sql", "r", encoding="utf8") as f:
     sql = f.read()
 
 with engine.connect() as conn:
