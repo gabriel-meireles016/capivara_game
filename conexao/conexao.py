@@ -1,9 +1,8 @@
-import sys
 from sqlalchemy import create_engine
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 
-DATABASE_URL = "postgresql+psycopg2://postgres:12345@localhost:5432/domino_chat"
+DATABASE_URL = "postgresql+psycopg2://postgres:12345@localhost:5432/domino_db"
 engine = create_engine(DATABASE_URL)
 Base = automap_base()
 Base.prepare(autoload_with=engine)

@@ -1,10 +1,7 @@
 import sys
 import random
-from sqlalchemy import create_engine, text
-from sqlalchemy.ext.automap import automap_base
+from sqlalchemy import text
 from conexao import session, Usuario, Dupla, Partida, Peca, MaoPartida, Movimentacao, PartidaUsuario
-
-
 
 # Funções uteis
 # Lista todos os jogadores cadastrados
