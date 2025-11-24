@@ -40,7 +40,7 @@ CREATE TABLE PartidaUsuario (
     idPartida INT NOT NULL REFERENCES Partida(idPartida) ON DELETE CASCADE,
     idUsuario    INT NOT NULL REFERENCES Usuario(idUsuario) ON DELETE CASCADE,
     idDupla      INT REFERENCES Dupla(idDupla),
-    posicaoMesa   INT NOT NULL, -- 1..4
+    posicaoMesa   INT NOT NULL,
     PRIMARY KEY (idPartida, idUsuario)
 );
 

@@ -197,7 +197,7 @@ def mostrar_mao_jogador(idpartida, idusuario):
                 opcoes.append("ESQUERDA")
             if peca.ladoa == ext_dir or peca.ladob == ext_dir:
                 opcoes.append("DIREITA")
-            print(f"  {i}. Peça [{peca.ladoa}-{peca.ladob}] (ID: {peca.idpeca}) → Encaxa em: {', '.join(opcoes)}")
+            print(f"  {i}. Peça [{peca.ladoa}-{peca.ladob}] (ID: {peca.idpeca}) -> Encaxa em: {', '.join(opcoes)}")
     else:
         print("\nNenhuma jogada possível nas extremidades atuais")
 
@@ -486,7 +486,7 @@ def jogar_partida_interativa(idpartida):
     peca_66 = session.query(Peca).filter_by(ladoa=6, ladob=6).first()
     mao_66 = session.query(MaoPartida).filter_by(
         idpartida=idpartida, 
-        idpeca=peca_66.idpeca,
+        idpeca=peca_66.idpeca if peca_66 else None,
         statuspeca='em_mao'
     ).first()
     
@@ -565,7 +565,7 @@ def menu():
 ================ CAPIVARA GAME ================
 1. Listar usuários
 2. Criar jogador
-3. Iniciar partida
+3. Criar partida
 4. Jogar partida
 5. Listar partidas
 6. Ranking
